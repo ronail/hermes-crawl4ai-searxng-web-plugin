@@ -35,26 +35,33 @@ That's it for search — `searxng-local` has no third-party dependency.
 
 ### Install crawl4ai separately (optional)
 
-**The plugin declares no hard dependencies, on purpose.** `crawl4ai` pins
-`snowballstemmer~=2.2` (`<3`) while Hermes core pins `snowballstemmer==3.1.1`
-for Python ≥3.14, and Hermes' package manager provisions Python 3.14. Those are
-incompatible, so declaring crawl4ai as a dependency makes the package manager
-refuse the install outright — taking the working search provider down with the
-broken extract one.
+**The plugin declares no dependencies at all — not even an extra — on
+purpose.** `crawl4ai` pins `snowballstemmer~=2.2` (`<3`) while Hermes core pins
+`snowballstemmer==3.1.1` for Python ≥3.14, and Hermes' package manager
+provisions Python 3.14. PM resolves the plugin member together with the rest of
+the candidate set, so declaring crawl4ai *either way* — as a dependency or as
+an extra — makes `hermes plugins enable` refuse the plugin as unsatisfiable:
 
-So install it out-of-band, only if you want extraction:
+```
+crawl4ai-searxng[crawl4ai] depends on crawl4ai>=0.5.0, we can conclude that
+hermes-agent and crawl4ai-searxng[crawl4ai] are incompatible
+```
+
+That would take the working search provider down with the broken extract one.
+(`[tool.hermes] opt-in-extras` does not help: it is only honoured on the
+`--all-extras` path, and the default selection reaches plugin extras anyway.)
+
+So install crawl4ai out-of-band, only if you want extraction:
 
 ```bash
 pip install crawl4ai
-crawl4ai install     # one-time: downloads the Chromium binary
+python -m playwright install chromium   # one-time: downloads the browser
 ```
 
-This plugin declares crawl4ai neither as a dependency nor as an extra, because
-PM's default selection reaches a declared extra and that re-creates the same
-conflict — which would make the plugin uninstallable.
-
-Until then the `crawl4ai` provider still registers and reports itself
-unavailable; search and every other tool keep working.
+Note the second command: crawl4ai 0.9.x ships `crawl4ai-setup` / `crawl4ai-doctor`
+but the browser itself is provisioned through Playwright. Until both run, the
+`crawl4ai` provider still registers and reports itself unavailable; search and
+every other tool keep working.
 
 ### Alternative: pip
 
@@ -176,7 +183,7 @@ loop.
 
 | Symptom | Cause / fix |
 |---|---|
-| `crawl4ai` never becomes available | It is not a declared dependency: `pip install crawl4ai && crawl4ai install`. |
+| `crawl4ai` never becomes available | Install it and its browser: `pip install crawl4ai && python -m playwright install chromium`. |
 | `hermes plugins enable` reports a `snowballstemmer` conflict | You are on a version that declares crawl4ai at all. Update to the current release, where it declares no dependencies. |
 | `SearXNG startup failed: ... settings not found` | Set `SEARXNG_DIR`, or create `searx/settings_hermes.yml` in your checkout. |
 | Neither provider appears in `hermes tools` | Check `hermes plugins list` — the plugin installs disabled; run `hermes plugins enable crawl4ai-searxng`. |
