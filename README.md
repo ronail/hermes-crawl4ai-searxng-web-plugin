@@ -51,7 +51,8 @@ That would take the working search provider down with the broken extract one.
 (`[tool.hermes] opt-in-extras` does not help: it is only honoured on the
 `--all-extras` path, and the default selection reaches plugin extras anyway.)
 
-So install crawl4ai out-of-band, only if you want extraction:
+So install crawl4ai out-of-band, only if you want extraction. `searxng-local`
+search needs nothing beyond this plugin's own `httpx` dependency.
 
 ```bash
 pip install crawl4ai
@@ -127,7 +128,7 @@ for creating a checkout and its settings file.
 ```bash
 git clone https://github.com/ronail/hermes-crawl4ai-searxng-web-plugin.git
 cd hermes-crawl4ai-searxng-web-plugin
-pip install pytest pyyaml
+pip install . pytest pyyaml
 ```
 
 Run the tests:

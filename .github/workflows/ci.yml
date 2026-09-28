@@ -24,6 +24,13 @@ jobs:
       # checkout: the plugin must load and degrade cleanly when its optional
       # dependencies are absent. Installing them here would mask exactly the
       # regression these tests exist to catch.
+      #
+      # httpx is NOT listed here on purpose — it is a declared runtime
+      # dependency, installed below from the package itself. Importing it as a
+      # test-only dep would hide a missing declaration.
+      - name: Install the package under test
+        run: python -m pip install .
+
       - name: Install test dependency
         run: python -m pip install --upgrade pip pytest pyyaml
 

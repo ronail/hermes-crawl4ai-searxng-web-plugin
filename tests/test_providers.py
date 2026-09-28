@@ -257,7 +257,7 @@ class TestRunAsync:
 
 
 class TestDeclaredDependencies:
-    """The plugin must declare nothing, or `hermes plugins enable` refuses it.
+    """crawl4ai must never be declared, as a dependency or an extra.
 
     crawl4ai pins snowballstemmer~=2.2 (<3); Hermes core pins
     snowballstemmer==3.1.1 for python>=3.14 and PM provisions 3.14. PM resolves
@@ -267,8 +267,14 @@ class TestDeclaredDependencies:
     --all-extras path.
 
     This regressed three times in a row (hard dependency, then extra, then
-    opt-in extra). Every version passed a green 15-test suite, because nothing
-    asserted the manifest. These tests are the guard.
+    opt-in extra). Every version passed a green suite, because nothing asserted
+    the manifest. These tests are the guard.
+
+    Narrow rather than blanket: httpx IS declared (searxng_provider imports it
+    at call time and its tree is conflict-free). The rule is "no crawl4ai",
+    not "no dependencies" — a blanket rule would forbid a legitimate fix for a
+    genuinely missing runtime dep, and that is how a real omission
+    (``httpx``) would be reintroduced.
     """
 
     @staticmethod
@@ -278,18 +284,42 @@ class TestDeclaredDependencies:
         with (_ROOT / "pyproject.toml").open("rb") as fh:
             return tomllib.load(fh)
 
-    def test_declares_no_required_dependencies(self):
+    @staticmethod
+    def _requirement_names() -> list[str]:
+        import re
+
+        project = TestDeclaredDependencies._pyproject()["project"]
+        declared = list(project.get("dependencies", []))
+        for group in project.get("optional-dependencies", {}).values():
+            declared.extend(group)
+        return [re.split(r"[<>=!~\[ ]", d, 1)[0].strip().lower() for d in declared]
+
+    def test_crawl4ai_is_not_a_required_dependency(self):
         deps = self._pyproject()["project"].get("dependencies", [])
 
-        assert deps == [], f"declaring dependencies breaks installation: {deps}"
+        assert "crawl4ai" not in self._requirement_names(), (
+            "crawl4ai pins snowballstemmer~=2.2, which conflicts with Hermes core's "
+            f"snowballstemmer==3.1.1 on the Python 3.14 PM provisions: {deps}"
+        )
 
-    def test_declares_no_optional_extras(self):
+    def test_crawl4ai_is_not_an_extra(self):
         extras = self._pyproject()["project"].get("optional-dependencies", {})
 
-        assert extras == {}, f"PM's default selection reaches every extra: {extras}"
+        assert "crawl4ai" not in self._requirement_names(), (
+            f"PM's default selection reaches every declared extra: {extras}"
+        )
 
     def test_crawl4ai_is_not_a_pip_dependency(self):
         manifest = yaml.safe_load((_ROOT / "plugin.yaml").read_text())
 
         assert manifest.get("pip_dependencies") in (None, []), manifest.get("pip_dependencies")
+
+    def test_declares_httpx_which_the_provider_imports(self):
+        """searxng_provider does `import httpx` at call time — it must be declared.
+
+        Omitting it produced a green local suite (the dev venv has httpx) and
+        an ImportError in a clean environment.
+        """
+        assert "httpx" in self._requirement_names(), self._pyproject()["project"].get("dependencies")
+
 
