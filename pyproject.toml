@@ -17,32 +17,27 @@ classifiers = [
     "Topic :: Internet :: WWW/HTTP :: Indexing/Search",
 ]
 
-# No hard dependencies, deliberately.
+# No dependencies at all, deliberately — and no extras either.
 #
-# crawl4ai CANNOT be a required dependency: it pins snowballstemmer~=2.2
-# (<3), while Hermes core pins snowballstemmer==3.1.1 for python>=3.14, and
-# PM provisions Python 3.14. Hermes' package manager resolves the whole
-# candidate set together and refuses the install as unsatisfiable, so a hard
-# pin makes the plugin uninstallable on a stock Hermes install.
+# crawl4ai CANNOT be declared here, as a dependency or as an extra. It pins
+# snowballstemmer~=2.2 (<3), while Hermes core pins snowballstemmer==3.1.1 for
+# python>=3.14, and PM provisions Python 3.14. PM resolves the plugin member
+# together with the rest of the candidate set, so either form makes
+# `hermes plugins enable` refuse the plugin as unsatisfiable:
 #
-# Both providers therefore degrade instead of blocking: `crawl4ai` registers
-# and reports is_available()==False until you install it yourself, and
-# `searxng-local` has no third-party requirement at all.
+#   crawl4ai-searxng[crawl4ai] depends on crawl4ai>=0.5.0, we can conclude
+#   that hermes-agent and crawl4ai-searxng[crawl4ai] are incompatible
+#
+# ([tool.hermes] opt-in-extras is not enough: PM's default "all" selection
+# still reaches a declared extra. Verified against PM, not inferred.)
+#
+# Both providers degrade instead of blocking: `crawl4ai` registers and reports
+# is_available()==False until you install it yourself, and `searxng-local` has
+# no third-party requirement at all.
 #
 # Install crawl4ai out-of-band if you want extraction:
 #     pip install crawl4ai && crawl4ai install
 dependencies = []
-
-[project.optional-dependencies]
-crawl4ai = ["crawl4ai>=0.5.0"]
-
-[tool.hermes]
-# Opt-in, not auto-installed. PM otherwise treats every declared extra as part
-# of the default closure and selects it on `hermes plugins enable`, which
-# re-creates the snowballstemmer conflict that dropping the hard dependency
-# fixed. With this marker the extra is only ever installed by naming it
-# explicitly: `hermes pm install --extra crawl4ai` (see README).
-opt-in-extras = ["crawl4ai"]
 
 [project.urls]
 Homepage = "https://github.com/ronail/hermes-crawl4ai-searxng-web-plugin"

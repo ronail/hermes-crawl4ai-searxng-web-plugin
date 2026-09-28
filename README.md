@@ -45,17 +45,16 @@ broken extract one.
 So install it out-of-band, only if you want extraction:
 
 ```bash
-hermes pm install --extra crawl4ai   # into the Hermes dependency environment
-crawl4ai install                     # one-time: downloads the Chromium binary
+pip install crawl4ai
+crawl4ai install     # one-time: downloads the Chromium binary
 ```
 
-The `[crawl4ai]` extra is marked `[tool.hermes] opt-in-extras`, so
-`hermes plugins enable` never selects it on its own — that is what keeps the
-plugin installable on a stock Hermes environment.
+This plugin declares crawl4ai neither as a dependency nor as an extra, because
+PM's default selection reaches a declared extra and that re-creates the same
+conflict — which would make the plugin uninstallable.
 
 Until then the `crawl4ai` provider still registers and reports itself
-unavailable; search and every other tool keep working. If you install Hermes
-outside its managed environment, plain `pip install crawl4ai` works too.
+unavailable; search and every other tool keep working.
 
 ### Alternative: pip
 
@@ -177,8 +176,8 @@ loop.
 
 | Symptom | Cause / fix |
 |---|---|
-| `crawl4ai` never becomes available | It is an optional dependency: `pip install crawl4ai && crawl4ai install`. |
-| `hermes plugins enable` reports a `snowballstemmer` conflict | You are on a version that declares crawl4ai as a hard dependency. Update to the current release, where it is an optional extra. |
+| `crawl4ai` never becomes available | It is not a declared dependency: `pip install crawl4ai && crawl4ai install`. |
+| `hermes plugins enable` reports a `snowballstemmer` conflict | You are on a version that declares crawl4ai at all. Update to the current release, where it declares no dependencies. |
 | `SearXNG startup failed: ... settings not found` | Set `SEARXNG_DIR`, or create `searx/settings_hermes.yml` in your checkout. |
 | Neither provider appears in `hermes tools` | Check `hermes plugins list` — the plugin installs disabled; run `hermes plugins enable crawl4ai-searxng`. |
 | Plugin vanished after `hermes update` | It was pip-installed rather than added via `hermes plugins install`. |
