@@ -1,9 +1,11 @@
 # crawl4ai-searxng
 
-Two local web backends for [Hermes](https://hermes-agent.nousresearch.com) in
-one plugin: **crawl4ai** for browser-backed page extraction and **SearXNG** for
-on-demand local search. No API keys, no hosted service, no per-request billing —
-both run entirely on your machine.
+**Web access for your Hermes agent, with no API key, no account, and no
+per-call bill.**
+
+Two local backends in one plugin: **crawl4ai** for browser-backed page
+extraction and **SearXNG** for on-demand local search. Both run entirely on your
+machine.
 
 | Provider | Capability | What it does |
 |---|---|---|
@@ -12,6 +14,59 @@ both run entirely on your machine.
 
 They are ordinary web-provider plugins, so you configure them exactly like the
 bundled backends via `web.search_backend` / `web.extract_backend`.
+
+## Why use this?
+
+Hermes ships eleven web backends. Six of them — Brave, Exa, Keenable,
+Parallel, Perplexity, Tavily — need an API key you have to sign up for and
+paste into your config, and they are metered services that bill per call.
+
+This plugin gives you both capabilities with **no account, no key, and no
+meter**.
+
+**The agent can actually browse.** This is the part that matters most. Without
+a search or extract backend, an agent is limited to what is already in its
+context and whatever tools you bolted on yourself. Web access is what lets it
+check a library's current API, read a bug report, look up an error message, or
+answer a question about anything that happened after its training cutoff. This
+turns that from "you configured a paid API" into "it works on your machine".
+
+**Cost stops being a factor.** The metered alternatives charge per call —
+published rates are in the same ballpark as $5–8 per 1,000 search requests and
+around $1 per 1,000 fetched pages (check the vendor's own pricing page; they
+change). An agent loop that searches and reads a dozen pages per turn burns
+through a free tier in an afternoon. Locally, the same loop costs nothing and
+has no rate limit to throttle against — which also means no 429s mid-task and no
+surprise invoice.
+
+**Nothing leaves your machine.** Search queries and fetched page contents stay
+local. That matters when you are researching unreleased work, internal
+infrastructure, or anything you would not paste into a third party's logs.
+
+**It degrades instead of disappearing.** Both providers register whether or not
+their dependencies are present, and `is_available()` never touches the network.
+A missing crawl4ai means extraction is off; it does not break search, the
+plugin, or the rest of your setup.
+
+### When *not* to use it
+
+Being straight about the tradeoffs:
+
+- **It is slower.** Extraction drives a real browser; expect seconds per page,
+  not milliseconds. Fine for an agent doing ten lookups, wrong for a bulk
+  crawl of ten thousand URLs.
+- **Search quality is your SearXNG's quality.** It metasearches whatever
+  upstream engines you enabled. Out of the box that is a different — often
+  noisier — result set than a purpose-built commercial search index.
+- **It costs you resources.** RAM for Chromium, a checkout to maintain, and
+  SearXNG to configure. On a laptop this is fine; on a small VPS it may not be.
+- **Upstream page changes can break extraction** when you have not updated the
+  checkout.
+
+If you need maximum speed, best-in-class search relevance, or scale, the hosted
+providers are the better tool. Use this when you want working web access with
+no account, no per-call cost, and no data leaving the machine — or as a fallback
+when a hosted provider is rate-limiting you.
 
 ## Install
 
