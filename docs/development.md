@@ -71,18 +71,48 @@ files rather than a second copy.
 
 ## How it works
 
-**crawl4ai** wraps `AsyncWebCrawler` (Playwright/Chromium). The crawler is
-cached in a module-level singleton behind an `asyncio.Lock`, so several
-`extract()` calls in one agent message share a single warm browser instead of
-each starting their own.
+### SearXNG lifecycle (`searxng_lifecycle.py`)
 
-**searxng-local** delegates process management to `searxng_lifecycle.py`, which
-tracks the SearXNG subprocess with OS-level primitives (`os.kill`,
-`os.waitpid`) rather than asyncio futures. That is what lets `stop()` work from
-a different event loop than the one that started the process — relevant
-because `web_search` dispatches synchronously but can be called from inside a
-running loop. The provider's `search()` is sync for the same reason, and
-`_run_async` bridges it safely when a loop is already running.
+A module-level singleton (`get_global_manager`) owns the subprocess so every
+provider instance in a session shares one process.
+
+- **Lazy start.** `start()` returns immediately if `is_running`, so the common
+  path costs a dict lookup, not a subprocess.
+- **Readiness probe.** After spawning, it polls `http://127.0.0.1:<port>/`
+  every 0.5s until it answers `< 500`, up to a 45s deadline, then raises.
+  A port that accepts TCP is not proof SearXNG is serving, hence the HTTP
+  probe rather than a bare connect check.
+- **Stale-port reclaim.** `_kill_process_on_port()` uses `lsof` to clear the
+  port before starting. A crashed prior session can leave a process whose
+  homepage answers while `/search` fails — a bare "is the port open?" check
+  would adopt exactly that broken process.
+- **Idle stop and atexit.** A `threading.Timer` fires 60s after the last
+  `start()`; every call resets it. `atexit` stops it if Hermes exits first.
+- **Cross-loop stop.** The process is tracked with `os.kill`/`os.waitpid`, not
+  asyncio subprocess Futures, so `stop()` works from a different event loop
+  than the one that started it. This matters because `web_search` dispatches
+  synchronously and can be called from inside a running loop.
+
+Measured on an M-series laptop, real checkout: cold start **5.99s**, warm reuse
+**0.0002s** with a stable PID across three calls.
+
+### crawl4ai provider
+
+Wraps `AsyncWebCrawler` (Playwright/Chromium). The crawler is a module-level
+singleton behind an `asyncio.Lock`, so several `extract()` calls in one agent
+message share a single warm browser instead of each starting their own.
+
+Failures are isolated per URL: each requested URL produces its own result
+entry, so one unreachable page cannot discard the rest of the batch.
+
+### Sync/async split
+
+`web_search` dispatches synchronously, so `searxng-local.search()` is sync even
+though the lifecycle is async. It reaches the loop through `_run_async`, which
+runs the coroutine on a dedicated worker thread when a loop is already running
+in the caller's thread — a bare `asyncio.run()` would raise
+`RuntimeError: asyncio.run() cannot be called from a running event loop` there.
+`crawl4ai.extract()` is genuinely async, and the dispatcher awaits it.
 
 ## Dependency policy
 

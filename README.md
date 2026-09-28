@@ -5,8 +5,8 @@ per-call bill.**
 
 | Provider | Capability | What it does |
 |---|---|---|
-| `crawl4ai` | extract | Renders JS-heavy pages in headless Chromium, returns clean markdown. A local stand-in for Firecrawl/Tavily. |
-| `searxng-local` | search | Starts your SearXNG on first search, keeps it warm, stops it when idle. |
+| `crawl4ai` | extract | Renders JS-heavy pages in headless Chromium, returns clean markdown. A local stand-in for Firecrawl/Tavily. One browser, shared across calls. |
+| `searxng-local` | search | Starts your SearXNG on the first search, reuses it, stops it when idle. Nothing to launch by hand. |
 
 ## Why
 
@@ -25,6 +25,29 @@ no rate limit to throttle against, and nothing leaves your machine.
 your SearXNG's upstream engines return, costs RAM and a checkout to maintain,
 and upstream page changes can break extraction. For speed, best-in-class
 relevance, or bulk scale, the hosted providers are the better tool.
+
+## Managed lifecycle
+
+Neither backend is something you start, babysit, or shut down. That is the
+part that makes them usable inside an agent loop rather than just a script you
+run by hand.
+
+**SearXNG starts on the first search and stops on its own.** Nothing is
+listening on a port until you actually search. Cold start measured on an M-
+series laptop: **~6s**. Every search after that reuses the running process —
+**~0.2ms**, same PID, because it is the same process, not a new one. After 60s
+idle it exits, and `atexit` stops it if Hermes quits mid-task. A stale process
+left on the port by a previous session is killed before start, so you never
+inherit a zombie whose homepage answers but whose search endpoint does not.
+
+The alternative is the arrangement that makes people give up on self-hosted
+search: a service you launch separately, that is either down when you need it
+or running all day burning memory.
+
+**One browser, reused across a message.** crawl4ai keeps a single Chromium
+instance behind a lock, so a turn that extracts six URLs shares one warm
+browser instead of paying startup six times. A single unreachable URL yields
+one error entry — the other five still return content.
 
 ## Install
 
@@ -66,10 +89,11 @@ web:
 With nothing set, Hermes auto-detects whichever provider is available. Both
 can coexist. `hermes tools` opens an interactive picker.
 
-**SearXNG:** the manager looks for a checkout at `$SEARXNG_DIR`, falling back
-to `~/Projects/searxng`, and expects `searx/settings_hermes.yml` inside it. It
-uses the checkout's own venv when present, else `python3` from `PATH`. Started
-on the first search, stopped after 60s idle or on exit. See the
+**SearXNG:** point `$SEARXNG_DIR` at a checkout (default
+`~/Projects/searxng`) containing `searx/settings_hermes.yml`. That is the only
+setup — no service to install, no port to reserve, no venv to activate: the
+manager runs the checkout's own interpreter, starts it on the first search, and
+stops it 60s after you stop searching. See the
 [SearXNG install guide](https://docs.searxng.org/admin/installation-searxng.html).
 
 ## Notes
