@@ -9,9 +9,11 @@ that the plugin loads and degrades cleanly when its dependencies are absent.
 from __future__ import annotations
 
 import asyncio
+from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 import pytest
+import yaml
 
 # conftest.py registers the repo root in sys.modules as `crawl4ai_searxng`
 # before collection, mirroring how the Hermes plugin loader imports it.
@@ -23,6 +25,8 @@ from crawl4ai_searxng.searxng_provider import (  # noqa: E402
     SearXNGLocalWebSearchProvider,
     _run_async,
 )
+
+_ROOT = Path(__file__).resolve().parents[1]
 
 
 # ── crawl4ai ───────────────────────────────────────────────────────────
@@ -250,3 +254,42 @@ class TestRunAsync:
             return _run_async(_work())
 
         assert asyncio.run(outer()) == "nested"
+
+
+class TestDeclaredDependencies:
+    """The plugin must declare nothing, or `hermes plugins enable` refuses it.
+
+    crawl4ai pins snowballstemmer~=2.2 (<3); Hermes core pins
+    snowballstemmer==3.1.1 for python>=3.14 and PM provisions 3.14. PM resolves
+    the plugin member with the rest of the candidate set, so crawl4ai must not
+    appear as a dependency *or* as an extra — PM's default selection reaches
+    declared extras, and [tool.hermes] opt-in-extras is only honoured on the
+    --all-extras path.
+
+    This regressed three times in a row (hard dependency, then extra, then
+    opt-in extra). Every version passed a green 15-test suite, because nothing
+    asserted the manifest. These tests are the guard.
+    """
+
+    @staticmethod
+    def _pyproject() -> dict:
+        import tomllib
+
+        with (_ROOT / "pyproject.toml").open("rb") as fh:
+            return tomllib.load(fh)
+
+    def test_declares_no_required_dependencies(self):
+        deps = self._pyproject()["project"].get("dependencies", [])
+
+        assert deps == [], f"declaring dependencies breaks installation: {deps}"
+
+    def test_declares_no_optional_extras(self):
+        extras = self._pyproject()["project"].get("optional-dependencies", {})
+
+        assert extras == {}, f"PM's default selection reaches every extra: {extras}"
+
+    def test_crawl4ai_is_not_a_pip_dependency(self):
+        manifest = yaml.safe_load((_ROOT / "plugin.yaml").read_text())
+
+        assert manifest.get("pip_dependencies") in (None, []), manifest.get("pip_dependencies")
+

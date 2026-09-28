@@ -127,7 +127,7 @@ for creating a checkout and its settings file.
 ```bash
 git clone https://github.com/ronail/hermes-crawl4ai-searxng-web-plugin.git
 cd hermes-crawl4ai-searxng-web-plugin
-pip install pytest
+pip install pytest pyyaml
 ```
 
 Run the tests:

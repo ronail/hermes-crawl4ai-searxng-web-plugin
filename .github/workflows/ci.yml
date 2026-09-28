@@ -25,7 +25,7 @@ jobs:
       # dependencies are absent. Installing them here would mask exactly the
       # regression these tests exist to catch.
       - name: Install test dependency
-        run: python -m pip install --upgrade pip pytest
+        run: python -m pip install --upgrade pip pytest pyyaml
 
       - name: Run tests
         run: python -m pytest tests/ -v
