@@ -13,11 +13,17 @@ provides_web_providers:
   - crawl4ai
   - searxng-local
 
-# crawl4ai is declared in pyproject.toml (pyproject wins over this list). It is
-# repeated here only so the manifest is self-describing for tooling that reads
-# plugin.yaml alone.
-pip_dependencies:
-  - crawl4ai>=0.5.0
+# No pip_dependencies, deliberately.
+#
+# crawl4ai cannot be declared here either. It pins snowballstemmer~=2.2 (<3)
+# while Hermes core pins snowballstemmer==3.1.1 for python>=3.14, and PM
+# provisions Python 3.14 — declaring it makes PM refuse to install this plugin
+# at all, taking the working search provider down with the broken extract one.
+#
+# The crawl4ai provider degrades on its own: it registers, and
+# is_available() reports False until crawl4ai is installed out-of-band
+# (`pip install crawl4ai && crawl4ai install`). searxng-local needs nothing.
+pip_dependencies: []
 
 # No credentials required. SEARXNG_DIR is optional (it only relocates the
 # checkout), so it is not gated here — a missing value just falls back to

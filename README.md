@@ -19,8 +19,7 @@ bundled backends via `web.search_backend` / `web.extract_backend`.
 hermes plugins install ronail/hermes-crawl4ai-searxng-web-plugin
 ```
 
-Hermes clones the repo, installs the declared Python dependencies through its
-package manager, and leaves the plugin disabled until you enable it:
+Hermes clones the repo and leaves the plugin disabled until you enable it:
 
 ```bash
 hermes plugins enable crawl4ai-searxng
@@ -32,17 +31,28 @@ To pin an exact commit (what the Hermes plugin catalog does):
 hermes plugins install ronail/hermes-crawl4ai-searxng-web-plugin --ref <40-char-sha>
 ```
 
-### Provision the browser (one-time)
+That's it for search — `searxng-local` has no third-party dependency.
 
-`crawl4ai` needs a Chromium binary, which pip does not download. After the
-plugin installs, run this once:
+### Install crawl4ai separately (optional)
+
+**The plugin declares no hard dependencies, on purpose.** `crawl4ai` pins
+`snowballstemmer~=2.2` (`<3`) while Hermes core pins `snowballstemmer==3.1.1`
+for Python ≥3.14, and Hermes' package manager provisions Python 3.14. Those are
+incompatible, so declaring crawl4ai as a dependency makes the package manager
+refuse the install outright — taking the working search provider down with the
+broken extract one.
+
+So install it out-of-band, only if you want extraction:
 
 ```bash
-crawl4ai install
+pip install crawl4ai
+crawl4ai install     # one-time: downloads the Chromium binary
 ```
 
-Until you do, the `crawl4ai` provider registers but reports itself unavailable —
-everything else keeps working.
+Until then the `crawl4ai` provider still registers and reports itself
+unavailable; search and every other tool keep working. If your Hermes
+environment can be rebuilt freely, `pip install "crawl4ai-searxng[crawl4ai]"`
+pulls both from PyPI once published.
 
 ### Alternative: pip
 
@@ -164,7 +174,8 @@ loop.
 
 | Symptom | Cause / fix |
 |---|---|
-| `crawl4ai` never becomes available | Run `crawl4ai install` to provision Chromium. |
+| `crawl4ai` never becomes available | It is an optional dependency: `pip install crawl4ai && crawl4ai install`. |
+| `hermes plugins enable` reports a `snowballstemmer` conflict | You are on a version that declares crawl4ai as a hard dependency. Update to the current release, where it is an optional extra. |
 | `SearXNG startup failed: ... settings not found` | Set `SEARXNG_DIR`, or create `searx/settings_hermes.yml` in your checkout. |
 | Neither provider appears in `hermes tools` | Check `hermes plugins list` — the plugin installs disabled; run `hermes plugins enable crawl4ai-searxng`. |
 | Plugin vanished after `hermes update` | It was pip-installed rather than added via `hermes plugins install`. |

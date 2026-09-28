@@ -17,12 +17,24 @@ classifiers = [
     "Topic :: Internet :: WWW/HTTP :: Indexing/Search",
 ]
 
-# crawl4ai ships the Playwright-driven browser stack. `crawl4ai install` still
-# has to provision the Chromium binary once after install (see README) — the
-# dependency below only makes the Python package importable.
-dependencies = [
-    "crawl4ai>=0.5.0",
-]
+# No hard dependencies, deliberately.
+#
+# crawl4ai CANNOT be a required dependency: it pins snowballstemmer~=2.2
+# (<3), while Hermes core pins snowballstemmer==3.1.1 for python>=3.14, and
+# PM provisions Python 3.14. Hermes' package manager resolves the whole
+# candidate set together and refuses the install as unsatisfiable, so a hard
+# pin makes the plugin uninstallable on a stock Hermes install.
+#
+# Both providers therefore degrade instead of blocking: `crawl4ai` registers
+# and reports is_available()==False until you install it yourself, and
+# `searxng-local` has no third-party requirement at all.
+#
+# Install crawl4ai out-of-band if you want extraction:
+#     pip install crawl4ai && crawl4ai install
+dependencies = []
+
+[project.optional-dependencies]
+crawl4ai = ["crawl4ai>=0.5.0"]
 
 [project.urls]
 Homepage = "https://github.com/ronail/hermes-crawl4ai-searxng-web-plugin"
