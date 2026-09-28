@@ -36,6 +36,14 @@ dependencies = []
 [project.optional-dependencies]
 crawl4ai = ["crawl4ai>=0.5.0"]
 
+[tool.hermes]
+# Opt-in, not auto-installed. PM otherwise treats every declared extra as part
+# of the default closure and selects it on `hermes plugins enable`, which
+# re-creates the snowballstemmer conflict that dropping the hard dependency
+# fixed. With this marker the extra is only ever installed by naming it
+# explicitly: `hermes pm install --extra crawl4ai` (see README).
+opt-in-extras = ["crawl4ai"]
+
 [project.urls]
 Homepage = "https://github.com/ronail/hermes-crawl4ai-searxng-web-plugin"
 Repository = "https://github.com/ronail/hermes-crawl4ai-searxng-web-plugin"

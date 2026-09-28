@@ -45,14 +45,17 @@ broken extract one.
 So install it out-of-band, only if you want extraction:
 
 ```bash
-pip install crawl4ai
-crawl4ai install     # one-time: downloads the Chromium binary
+hermes pm install --extra crawl4ai   # into the Hermes dependency environment
+crawl4ai install                     # one-time: downloads the Chromium binary
 ```
 
+The `[crawl4ai]` extra is marked `[tool.hermes] opt-in-extras`, so
+`hermes plugins enable` never selects it on its own — that is what keeps the
+plugin installable on a stock Hermes environment.
+
 Until then the `crawl4ai` provider still registers and reports itself
-unavailable; search and every other tool keep working. If your Hermes
-environment can be rebuilt freely, `pip install "crawl4ai-searxng[crawl4ai]"`
-pulls both from PyPI once published.
+unavailable; search and every other tool keep working. If you install Hermes
+outside its managed environment, plain `pip install crawl4ai` works too.
 
 ### Alternative: pip
 
