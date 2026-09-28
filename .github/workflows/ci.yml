@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      # The suite deliberately runs WITHOUT crawl4ai and without a SearXNG
+      # checkout: the plugin must load and degrade cleanly when its optional
+      # dependencies are absent. Installing them here would mask exactly the
+      # regression these tests exist to catch.
+      - name: Install test dependency
+        run: python -m pip install --upgrade pip pytest
+
+      - name: Run tests
+        run: python -m pytest tests/ -v
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build wheel and sdist
+        run: |
+          python -m pip install --upgrade pip build
+          python -m build
+
+      - name: Verify plugin.yaml ships in the wheel
+        # The manifest is loaded from disk at runtime, so a wheel missing it
+        # would install a plugin that cannot register.
+        run: |
+          python - <<'PY'
+          import glob, sys, zipfile
+          wheels = glob.glob("dist/*.whl")
+          assert wheels, "no wheel built"
+          with zipfile.ZipFile(wheels[0]) as z:
+              names = z.namelist()
+          assert "crawl4ai_searxng/plugin.yaml" in names, names
+          print("plugin.yaml present in wheel")
+          PY

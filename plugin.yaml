@@ -1,0 +1,34 @@
+name: crawl4ai-searxng
+version: 1.0.0
+description: "crawl4ai browser extraction + on-demand local SearXNG search. Two local web backends, no API keys, no hosted services."
+author: ronail
+kind: backend
+license: MIT
+homepage: https://github.com/ronail/hermes-crawl4ai-searxng-web-plugin
+
+# Provider names registered by register(ctx) — must match each provider's
+# `name` property, since these are the ids used in web.search_backend /
+# web.extract_backend / web.backend config keys.
+provides_web_providers:
+  - crawl4ai
+  - searxng-local
+
+# crawl4ai is declared in pyproject.toml (pyproject wins over this list). It is
+# repeated here only so the manifest is self-describing for tooling that reads
+# plugin.yaml alone.
+pip_dependencies:
+  - crawl4ai>=0.5.0
+
+# No credentials required. SEARXNG_DIR is optional (it only relocates the
+# checkout), so it is not gated here — a missing value just falls back to
+# ~/Projects/searxng.
+optional_env:
+  - key: SEARXNG_DIR
+    description: Path to your SearXNG checkout (defaults to ~/Projects/searxng)
+    required: false
+
+tags:
+  - web
+  - local
+  - extraction
+  - search

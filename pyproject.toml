@@ -1,0 +1,54 @@
+[project]
+name = "crawl4ai-searxng"
+version = "1.0.0"
+description = "crawl4ai browser extraction + on-demand local SearXNG search for Hermes"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "ronail" }]
+keywords = ["hermes", "web", "crawl4ai", "searxng", "extraction", "local"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Internet :: WWW/HTTP :: Indexing/Search",
+]
+
+# crawl4ai ships the Playwright-driven browser stack. `crawl4ai install` still
+# has to provision the Chromium binary once after install (see README) — the
+# dependency below only makes the Python package importable.
+dependencies = [
+    "crawl4ai>=0.5.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/ronail/hermes-crawl4ai-searxng-web-plugin"
+Repository = "https://github.com/ronail/hermes-crawl4ai-searxng-web-plugin"
+Issues = "https://github.com/ronail/hermes-crawl4ai-searxng-web-plugin/issues"
+
+# Optional pip install route. The primary route is
+# `hermes plugins install ronail/hermes-crawl4ai-searxng-web-plugin`, which
+# clones this repo; the entry point additionally makes the plugin discoverable
+# when the distribution is present in the environment.
+[project.entry-points."hermes_agent.plugins"]
+crawl4ai-searxng = "crawl4ai_searxng"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+# The repository root IS the plugin directory (plugin.yaml + __init__.py sit
+# side by side, which is what `hermes plugins validate` requires). Map the
+# package name onto that same root so the optional pip route ships the same
+# files rather than a second copy.
+packages = ["crawl4ai_searxng"]
+
+[tool.setuptools.package-dir]
+crawl4ai_searxng = "."
+
+[tool.setuptools.package-data]
+crawl4ai_searxng = ["plugin.yaml"]

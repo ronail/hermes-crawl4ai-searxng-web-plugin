@@ -1,0 +1,10 @@
+# Build artifacts from `pip install .` / `python -m build`
+*.egg-info/
+build/
+dist/
+__pycache__/
+*.py[cod]
+.venv/
+
+# pytest
+.pytest_cache/
