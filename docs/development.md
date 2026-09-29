@@ -138,6 +138,37 @@ default selection reaches plugin extras anyway
 `httpx` *is* declared. Its tree is conflict-free with core, and
 `searxng_provider` imports it at call time.
 
+## Multi-profile installs
+
+Hermes keeps **one shared dependency venv** per install. `pm/plugins_state.py::dependency_homes()`
+returns the default home plus every *live* profile, and
+`pm/workspace.py::enabled_plugin_entries` turns each home's `plugins.enabled`
+into workspace members. A plugin carrying a `pyproject.toml` becomes a uv
+member keyed by `_member_key(identity)` = `<dirname>-<sha256(identity.resolve())[:16]>`.
+
+Consequences:
+
+- **Same plugin in two profiles = two members with the same `[project] name`.**
+  uv fails the lock: `Two workspace members are both named 'crawl4ai-searxng'`.
+  Deduplication (`candidate_members`) compares unresolved paths, so it does not
+  merge them.
+- **Symlinking is worse, not better.** A symlink resolves to the *same* real
+  path, so both entries compute the same member key, and the second
+  `shutil.copytree` into `plugin-sources/<key>` raises `FileExistsError`
+  (`pm/workspace.py:258`).
+- **The escape hatch is `python_runtime: external` in `plugin.yaml`**, which
+  makes `declaration.is_member` false (`pm/plugin_declarations.py:72`) so the
+  plugin never joins the union at all. `pm/workspace.py:268` likewise treats a
+  `pyproject.toml` with no `build-system` as *virtual* and renames it to
+  `hermes-plugin-<key>`, which also survives a duplicate name.
+- **The entry point avoids the problem entirely.** A pip-installed plugin is
+  discovered as `source="entrypoint"` with `path=<module>`, never a directory,
+  so it is not a workspace member and one distribution serves every profile.
+  This plugin already declares `[project.entry-points."hermes_agent.plugins"]`.
+
+Opt-in stays per profile either way: `plugins.enabled` lives in each home's
+`config.yaml`, and `pm/workspace.py:297` gates on `names & enabled`.
+
 ## Releasing
 
 ```bash

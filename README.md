@@ -37,9 +37,30 @@ browser. One unreachable URL returns one error; the rest still come back.
 
 ## Install
 
+Pick one route. They differ in how dependencies are managed, not in what you
+get.
+
+**pip** — works everywhere, including across multiple profiles:
+
+```bash
+pip install git+https://github.com/ronail/hermes-crawl4ai-searxng-web-plugin.git
+hermes plugins enable crawl4ai-searxng
+```
+
+**`hermes plugins install`** — Hermes' package manager admits the plugin
+transactionally, so dependencies are resolved and recorded with the rest of the
+install. Install it in **one** profile; a second profile's copy collides in the
+shared venv ([why](#multiple-profiles)):
+
 ```bash
 hermes plugins install ronail/hermes-crawl4ai-searxng-web-plugin
 hermes plugins enable crawl4ai-searxng
+```
+
+Pin a commit, as the Hermes catalog does:
+
+```bash
+hermes plugins install ronail/hermes-crawl4ai-searxng-web-plugin --ref <40-char-sha>
 ```
 
 Search works now. For extraction:
@@ -54,12 +75,6 @@ crawl4ai is intentionally not a declared dependency or extra: it pins
 package manager provisions, and the conflict makes `hermes plugins enable`
 refuse the whole plugin. Until you install it, extraction reports itself
 unavailable and everything else works. [Details](docs/development.md#dependency-policy).
-
-Pin a commit, as the Hermes catalog does:
-
-```bash
-hermes plugins install ronail/hermes-crawl4ai-searxng-web-plugin --ref <40-char-sha>
-```
 
 ## Configure
 
@@ -78,15 +93,50 @@ install, no port to reserve, no venv to activate — the manager runs the
 checkout's own interpreter. See the
 [SearXNG guide](https://docs.searxng.org/admin/installation-searxng.html).
 
+## Multiple profiles
+
+Hermes uses **one shared dependency venv** for the whole install. Every live
+profile's enabled plugins are unioned into it, and a plugin with a
+`pyproject.toml` becomes a uv *workspace member* keyed by its install path. So
+installing this plugin into two profiles with `hermes plugins install` gives uv
+two members that declare the same distribution name, and enable fails:
+
+```
+error: Two workspace members are both named `crawl4ai-searxng`
+```
+
+**Install it once with pip instead.** The package declares a
+`hermes_agent.plugins` entry point, which Hermes discovers as
+`source: entrypoint` — a module reference, not a directory, so it never becomes
+a workspace member. One distribution, every profile:
+
+```bash
+pip install crawl4ai-searxng        # or: pip install git+https://github.com/ronail/...
+hermes plugins enable crawl4ai-searxng
+```
+
+Run `hermes plugins enable` once per profile that should load it — the opt-in
+lives in each profile's `config.yaml`, so enablement stays per-profile while the
+dependency is shared. Verify per profile with `hermes -p <name> plugins list`.
+
+If you prefer the `hermes plugins install` route, install it in **one** profile
+only. The dependency is then in the shared venv for everyone; `plugins.enabled`
+still decides which profile actually loads it.
+
+Do not symlink one install into the other profile's plugins directory: both
+paths resolve to the same member key, and the second `copytree` fails with
+`FileExistsError`.
+
 ## Troubleshooting
 
 | Symptom | Fix |
 |---|---|
 | `crawl4ai` never available | `pip install crawl4ai && python -m playwright install chromium` |
 | `enable` reports a `snowballstemmer` conflict | Version declares crawl4ai — update to current |
+| `enable` reports two members named `crawl4ai-searxng` | Installed in two profiles — see [Multiple profiles](#multiple-profiles) |
 | `SearXNG startup failed: settings not found` | Set `SEARXNG_DIR`, or create `searx/settings_hermes.yml` |
 | No providers in `hermes tools` | It installs disabled — `hermes plugins enable crawl4ai-searxng` |
-| Vanished after `hermes update` | Was pip-installed, not added via `hermes plugins install` |
+| Vanished after `hermes update` | Was pip-installed into a venv PM does not manage |
 
 ## Notes
 

@@ -6,6 +6,14 @@ kind: backend
 license: MIT
 homepage: https://github.com/ronail/hermes-crawl4ai-searxng-web-plugin
 
+# This plugin manages no dependencies of its own: crawl4ai is installed
+# out-of-band (see pip_dependencies below) and searxng-local needs nothing.
+# Declaring python_runtime: external keeps it out of the shared venv union,
+# so the same plugin can be installed in the default home and in several
+# profiles at once — a member joined twice would declare one [project] name
+# twice and fail `uv lock`. See docs/development.md#multi-profile-installs.
+python_runtime: external
+
 # Provider names registered by register(ctx) — must match each provider's
 # `name` property, since these are the ids used in web.search_backend /
 # web.extract_backend / web.backend config keys.
