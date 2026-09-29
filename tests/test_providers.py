@@ -323,3 +323,34 @@ class TestDeclaredDependencies:
         assert "httpx" in self._requirement_names(), self._pyproject()["project"].get("dependencies")
 
 
+
+
+class TestExternalPythonRuntime:
+    """plugin.yaml must declare `python_runtime: external`.
+
+    Hermes keeps ONE shared dependency venv, unioned over the default home and
+    every live profile. A plugin that declares dependencies becomes a uv
+    workspace member keyed by sha256(identity.resolve()), so installing this one
+    in two profiles produced two members both named `crawl4ai-searxng` and
+    `hermes plugins enable` failed with:
+
+        error: Two workspace members are both named `crawl4ai-searxng`
+
+    `python_runtime: external` makes PluginDeclaration.is_member false
+    (pm/plugin_declarations.py:72), so the plugin never joins the union and any
+    number of profiles can hold it. Removing it re-breaks multi-profile
+    installs, and nothing else in the suite would notice.
+    """
+
+    @staticmethod
+    def _manifest() -> dict:
+        import yaml
+
+        with (_ROOT / "plugin.yaml").open(encoding="utf-8") as fh:
+            return yaml.safe_load(fh)
+
+    def test_declares_external_python_runtime(self):
+        assert self._manifest().get("python_runtime") == "external", (
+            "plugin.yaml must declare python_runtime: external or the plugin "
+            "collides in the shared venv when installed in two profiles"
+        )

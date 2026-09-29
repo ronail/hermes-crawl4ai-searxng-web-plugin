@@ -37,21 +37,6 @@ browser. One unreachable URL returns one error; the rest still come back.
 
 ## Install
 
-Pick one route. They differ in how dependencies are managed, not in what you
-get.
-
-**pip** — works everywhere, including across multiple profiles:
-
-```bash
-pip install git+https://github.com/ronail/hermes-crawl4ai-searxng-web-plugin.git
-hermes plugins enable crawl4ai-searxng
-```
-
-**`hermes plugins install`** — Hermes' package manager admits the plugin
-transactionally, so dependencies are resolved and recorded with the rest of the
-install. Install it in **one** profile; a second profile's copy collides in the
-shared venv ([why](#multiple-profiles)):
-
 ```bash
 hermes plugins install ronail/hermes-crawl4ai-searxng-web-plugin
 hermes plugins enable crawl4ai-searxng
@@ -76,6 +61,14 @@ package manager provisions, and the conflict makes `hermes plugins enable`
 refuse the whole plugin. Until you install it, extraction reports itself
 unavailable and everything else works. [Details](docs/development.md#dependency-policy).
 
+Run the same commands once per profile. This plugin is safe to install
+everywhere. [Multiple profiles](#multiple-profiles).
+
+`pip install` also works and the `hermes_agent.plugins` entry point makes the
+package visible to every profile — but only in the interpreter the CLI itself
+runs in, which is not a virtualenv you pip into by hand.
+`hermes plugins install` is the route that keeps working.
+
 ## Configure
 
 ```yaml
@@ -95,37 +88,29 @@ checkout's own interpreter. See the
 
 ## Multiple profiles
 
-Hermes uses **one shared dependency venv** for the whole install. Every live
-profile's enabled plugins are unioned into it, and a plugin with a
-`pyproject.toml` becomes a uv *workspace member* keyed by its install path. So
-installing this plugin into two profiles with `hermes plugins install` gives uv
-two members that declare the same distribution name, and enable fails:
-
-```
-error: Two workspace members are both named `crawl4ai-searxng`
-```
-
-**Install it once with pip instead.** The package declares a
-`hermes_agent.plugins` entry point, which Hermes discovers as
-`source: entrypoint` — a module reference, not a directory, so it never becomes
-a workspace member. One distribution, every profile:
+Install it in as many profiles as you like. Each profile has its own plugin
+directory and its own `plugins.enabled`, so install and enable once per profile:
 
 ```bash
-pip install crawl4ai-searxng        # or: pip install git+https://github.com/ronail/...
+hermes plugins install ronail/hermes-crawl4ai-searxng-web-plugin   # default home
+hermes -p dev plugins install ronail/hermes-crawl4ai-searxng-web-plugin
 hermes plugins enable crawl4ai-searxng
+hermes -p dev plugins enable crawl4ai-searxng
 ```
 
-Run `hermes plugins enable` once per profile that should load it — the opt-in
-lives in each profile's `config.yaml`, so enablement stays per-profile while the
-dependency is shared. Verify per profile with `hermes -p <name> plugins list`.
+This works because `plugin.yaml` declares `python_runtime: external` — the
+plugin manages no dependencies of its own, so Hermes leaves it out of the
+shared venv entirely. Check any profile with `hermes -p <name> plugins list`.
 
-If you prefer the `hermes plugins install` route, install it in **one** profile
-only. The dependency is then in the shared venv for everyone; `plugins.enabled`
-still decides which profile actually loads it.
-
-Do not symlink one install into the other profile's plugins directory: both
-paths resolve to the same member key, and the second `copytree` fails with
-`FileExistsError`.
+Why it works: Hermes keeps **one shared dependency venv**, unioned over the
+default home and every live profile. A plugin that *does* declare dependencies
+becomes a uv workspace member keyed by its install path, so two copies would
+declare one name twice and enable would fail with `Two workspace members are
+both named crawl4ai-searxng`. A plugin owning no dependencies never joins that
+union, so any number of profiles can hold it. Do not symlink one install into
+another profile's directory — the member key hashes the *resolved* path, so
+both would compute one key and the second copy fails with `FileExistsError`.
+[Details](docs/development.md#multi-profile-installs).
 
 ## Troubleshooting
 
@@ -133,7 +118,7 @@ paths resolve to the same member key, and the second `copytree` fails with
 |---|---|
 | `crawl4ai` never available | `pip install crawl4ai && python -m playwright install chromium` |
 | `enable` reports a `snowballstemmer` conflict | Version declares crawl4ai — update to current |
-| `enable` reports two members named `crawl4ai-searxng` | Installed in two profiles — see [Multiple profiles](#multiple-profiles) |
+| `enable` reports two members named `crawl4ai-searxng` | Pre-`python_runtime: external` version — update |
 | `SearXNG startup failed: settings not found` | Set `SEARXNG_DIR`, or create `searx/settings_hermes.yml` |
 | No providers in `hermes tools` | It installs disabled — `hermes plugins enable crawl4ai-searxng` |
 | Vanished after `hermes update` | Was pip-installed into a venv PM does not manage |
